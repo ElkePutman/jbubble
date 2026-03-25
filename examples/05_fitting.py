@@ -68,7 +68,7 @@ key = jr.PRNGKey(42)
 radius_span = ground_truth_res.radius.max() - ground_truth_res.radius.min()
 noise_std = 0.05 * radius_span  # 5% of radius span
 noise = jr.normal(key, shape=ground_truth_res.radius.shape) * noise_std
-target_radius = ground_truth_res.radius + noise
+target_radius = ground_truth_res.radius + noise #create measurement data with noise
 
 
 # 3. Define the Loss Function
