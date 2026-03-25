@@ -30,7 +30,7 @@ R0 = 2e-6  # [m]
 
 # 1. Define the forward model factory
 # This builds an EquationOfMotion from the parameter we want to fit (chi).
-def make_eom(params: dict) -> EquationOfMotion:
+def make_eom(params: dict) -> EquationOfMotion: # result is object of type EquationOfMotion
     # Marmottant shell elasticity (chi) is what we will estimate.
     sigma = GompertzSurfaceTension(
         R_buckle_ratio=0.98,
