@@ -51,7 +51,7 @@ class FitResult:
 
 
 def fit_parameters(
-    make_model: Callable[[PyTree], tuple[EquationOfMotion, Pulse]],
+    make_model: Callable[[PyTree], tuple[EquationOfMotion, Pulse]], #callable function that takes p which are the current parameters and returns a tuple of eom an pulse
     params0: PyTree,
     *,
     save_spec: SaveSpec,
@@ -60,7 +60,7 @@ def fit_parameters(
     optimizer: optax.GradientTransformation,
     n_steps: int = 200,
     config: SolverConfig | None = None,
-    adjoint: diffrax.AbstractAdjoint | None = None,
+    adjoint: diffrax.AbstractAdjoint | None = None, #default is None, other option is a diffrax abstract adjoint which is the base class for different adjoint methods, e.g. RecursiveCheckpointAdjoint, BacksolveAdjoint, etc.
     step_callback: Callable[[int, PyTree, float], None] | None = None,
     log_every: int = 25,
 ) -> FitResult:
@@ -73,7 +73,7 @@ def fit_parameters(
         # Single parameter as a dict
         fit_parameters(
             make_model=lambda p: (make_eom(p), my_pulse),
-            params0={'kappa_s': 2.4e-9},
+            params0={'kappa_s': 2.4e-9}, # initial guess 
             ...
         )
 

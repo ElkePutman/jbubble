@@ -31,7 +31,7 @@ class GasModel(eqx.Module, abc.ABC):
     Examples: polytropic law, van der Waals corrected gas.
     """
 
-    @abc.abstractmethod
+    @abc.abstractmethod #enforce that subclasses implement __call__ to compute p_gas(state)
     def __call__(self, state: BubbleState) -> jax.Array:
         """Compute gas pressure p_gas(state).
 
@@ -60,7 +60,7 @@ class PolytropicGas(GasModel):
         Polytropic exponent  (1.0 = isothermal, 1.4 = adiabatic air).
     """
 
-    gamma: Property = eqx.field(converter=as_property)
+    gamma: Property = eqx.field(converter=as_property) #allows gamma to be a constant or a state-dependent property
 
     def __call__(self, state: BubbleState) -> jax.Array:
         return state.P_gas0 * (state.R0 / state.R) ** (3.0 * self.gamma(state))

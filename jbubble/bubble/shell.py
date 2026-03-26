@@ -32,7 +32,7 @@ class ShellModel(eqx.Module, abc.ABC):
 
     """
 
-    sigma: Property = eqx.field(converter=as_property)
+    sigma: Property = eqx.field(converter=as_property) # input for shell model parameters can be a constant or a state-dependent property, but is always stored as a Property in the ShellModel
 
     def p_laplace(self, state: BubbleState) -> jax.Array:
         """Laplace pressure contribution from surface tension."""
