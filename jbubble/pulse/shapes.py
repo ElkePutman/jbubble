@@ -9,7 +9,7 @@ import jax
 import jax.numpy as jnp
 from jax.typing import ArrayLike
 
-NUM_FOURIER_TERMS = 10
+NUM_FOURIER_TERMS = 100
 
 
 class PulseShape(eqx.Module):

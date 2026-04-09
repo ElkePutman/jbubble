@@ -179,7 +179,9 @@ class ModifiedRayleighPlesset(EquationOfMotion[BubbleState]):
         p_ac = p_ac_fn(t)
 
         # Gas radiation damping: dp_gas/dt = (dp_gas/dR) * Rdot
+        
         gas_tangent = jax.grad(self.gas)(state)
+
         dp_gas_dR = gas_tangent.R
         dp_gas_dt = dp_gas_dR * R_dot
 

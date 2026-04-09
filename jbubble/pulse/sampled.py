@@ -39,8 +39,7 @@ class SampledPulse(Pulse):
 
     @property
     def duration(self) -> float:
-        # Keep this as a JAX scalar so it remains compatible with jit/grad.
-        return self.ts[-1] - self.ts[0]
+        return (self.ts[-1] - self.ts[0])
 
     def _evaluate(self, t: jax.Array) -> jax.Array:
         return jnp.interp(t, self.ts, self.pressures)

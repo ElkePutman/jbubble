@@ -142,9 +142,74 @@ class QuasiAcoustic(EmissionModel):
         R_dot_ret = jnp.interp(t_ret, result.ts, result.state.R_dot)
         R_ddot_ret = jnp.interp(t_ret, result.ts, result.state_dot.R_dot)
 
+
         return (
             jnp.asarray(self.rho_L)
             * R_ret**2
             / jnp.asarray(r)
             * (R_ddot_ret + 2.0 * R_dot_ret**2 / R_ret)
         )
+    
+
+class QuasiAcoustic_Attenuated(EmissionModel):
+    """Quasi-acoustic emission with retarded-time correction.
+
+    Accounts for the finite speed of sound by evaluating the bubble-wall
+    quantities at the retarded time t_ret = t − r / c_L:
+
+    ::
+
+        p_rad(r, t) = rho_L R²(t_ret) / r
+                      · [R̈(t_ret) + 2 Ṙ²(t_ret) / R(t_ret)]
+
+    Uses linear interpolation (``jnp.interp``) to evaluate the
+    trajectory at retarded times.  For field points where
+    t_ret < t_start the values are clamped to the initial (equilibrium)
+    state — physically reasonable since the bubble is quiescent before
+    excitation.
+
+    Fields
+    ------
+    rho_L : float or jax.Array
+        Liquid density [kg/m³].
+    c_L : float or jax.Array
+        Speed of sound in the liquid [m/s].
+    """
+
+    rho_L: ArrayLike
+    c_L: ArrayLike
+
+    def attenuation_factor(self,
+            freq_hz: jax.Array,
+            r:ArrayLike) -> jax.Array:
+        alpha_db_per_cm_mhz = 0.5  # example value, adjust as needed
+        attenuation_db = alpha_db_per_cm_mhz * (freq_hz / 1e6) * (r * 100)  # convert r to cm
+        return 10 ** (-attenuation_db / 20)
+
+    def __call__(
+        self,
+        result: SimulationResult,
+        r: ArrayLike,
+    ) -> jax.Array:
+        delay = r / self.c_L
+        t_ret = result.ts - delay
+
+        # Interpolate bubble-wall quantities at retarded times.
+        R_ret = jnp.interp(t_ret, result.ts, result.state.R)
+        R_dot_ret = jnp.interp(t_ret, result.ts, result.state.R_dot)
+        R_ddot_ret = jnp.interp(t_ret, result.ts, result.state_dot.R_dot)
+
+        Pscat = (
+            jnp.asarray(self.rho_L)
+            * R_ret**2
+            / jnp.asarray(r)
+            * (R_ddot_ret + 2.0 * R_dot_ret**2 / R_ret)
+        )
+
+        Pscat_fft = jnp.fft.rfft(Pscat)
+        freqs = jnp.fft.rfftfreq(Pscat.size, d=(result.ts[1] - result.ts[0]))
+        attenuation = self.attenuation_factor(freq_hz = freqs, r = r)
+        Pscat_fft_attenuated = Pscat_fft * attenuation
+        Pscat_attenuated = jnp.fft.irfft(Pscat_fft_attenuated, n=Pscat.size)
+
+        return Pscat_attenuated
