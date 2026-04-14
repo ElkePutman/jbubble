@@ -38,8 +38,13 @@ class SampledPulse(Pulse):
     pressures: jax.Array
 
     @property
+<<<<<<< HEAD
     def duration(self) -> float:
         return (self.ts[-1] - self.ts[0])
+=======
+    def duration(self) -> jax.Array:
+        return self.ts[-1] - self.ts[0]
+>>>>>>> upstream/main
 
     def _evaluate(self, t: jax.Array) -> jax.Array:
         return jnp.interp(t, self.ts, self.pressures)
