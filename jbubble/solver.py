@@ -114,7 +114,8 @@ def solve_eom(
 
     term = diffrax.ODETerm(ode_func)
     progress_meter = (
-        diffrax.TextProgressMeter() if progress else diffrax.NoProgressMeter()
+        # diffrax.TextProgressMeter() if progress else diffrax.NoProgressMeter()
+        diffrax.TqdmProgressMeter() if progress else diffrax.NoProgressMeter()
     )
     _adjoint = adjoint if adjoint is not None else diffrax.RecursiveCheckpointAdjoint()
 
