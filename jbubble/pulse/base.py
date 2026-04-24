@@ -235,3 +235,36 @@ class Summed(Pulse):
     def _evaluate(self, t: jax.Array) -> jax.Array:
         # Each p(t) includes the child's own envelope.
         return jnp.sum(jnp.array([p(t) for p in self.pulses]))
+
+
+# class Attenuated(Pulse):
+
+#     pulse: Pulse
+#     gain: float
+
+#     @property
+#     def duration(self) -> float:
+#         return self.pulse.duration
+    
+#     @property
+#     def t_end(self) -> float:
+#         return self.pulse.t_end
+    
+#     def _evaluate(self, t: jax.Array) -> jax.Array:
+#         return self.gain * self.pulse(t)
+    
+#     @classmethod
+#     def from_alpha_db_cm_mhz(
+#         cls, 
+#         pulse: Pulse, 
+#         alpha_db_cm_mhz: float, 
+#         distance_m: float, 
+#         freq_hz: float):
+#         attenuation_db = alpha_db_cm_mhz * (distance_m * 100.0) * (freq_hz / 1e6)
+#         gain = float(10.0 ** (-attenuation_db / 20.0))
+#         return cls(pulse=pulse, gain=gain)
+        
+
+
+
+

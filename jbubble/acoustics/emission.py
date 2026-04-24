@@ -44,6 +44,7 @@ class EmissionModel(eqx.Module, abc.ABC):
         self,
         result: SimulationResult,
         r: ArrayLike,
+        alpha: ArrayLike = None,
     ) -> jax.Array:
         """Compute radiated pressure at distance *r*.
 
@@ -179,18 +180,21 @@ class QuasiAcoustic_Attenuated(EmissionModel):
     rho_L: ArrayLike
     c_L: ArrayLike
 
+
     def attenuation_factor(self,
             freq_hz: jax.Array,
-            r:ArrayLike) -> jax.Array:
-        alpha_db_per_cm_mhz = 0.5  # example value, adjust as needed
-        attenuation_db = alpha_db_per_cm_mhz * (freq_hz / 1e6) * (r * 100)  # convert r to cm
+            r:ArrayLike,
+            alpha: ArrayLike
+            ) -> jax.Array:
+        attenuation_db = alpha * (freq_hz / 1e6) * (r * 100)  
         return 10 ** (-attenuation_db / 20)
 
     def __call__(
         self,
         result: SimulationResult,
         r: ArrayLike,
-    ) -> jax.Array:
+        alpha: ArrayLike
+        ) -> jax.Array:
         delay = r / self.c_L
         t_ret = result.ts - delay
 
@@ -198,6 +202,7 @@ class QuasiAcoustic_Attenuated(EmissionModel):
         R_ret = jnp.interp(t_ret, result.ts, result.state.R)
         R_dot_ret = jnp.interp(t_ret, result.ts, result.state.R_dot)
         R_ddot_ret = jnp.interp(t_ret, result.ts, result.state_dot.R_dot)
+
 
         Pscat = (
             jnp.asarray(self.rho_L)
@@ -208,8 +213,9 @@ class QuasiAcoustic_Attenuated(EmissionModel):
 
         Pscat_fft = jnp.fft.rfft(Pscat)
         freqs = jnp.fft.rfftfreq(Pscat.size, d=(result.ts[1] - result.ts[0]))
-        attenuation = self.attenuation_factor(freq_hz = freqs, r = r)
+        attenuation = self.attenuation_factor(freq_hz = freqs, r = r, alpha = alpha)
         Pscat_fft_attenuated = Pscat_fft * attenuation
         Pscat_attenuated = jnp.fft.irfft(Pscat_fft_attenuated, n=Pscat.size)
 
         return Pscat_attenuated
+
