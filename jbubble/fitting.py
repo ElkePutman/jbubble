@@ -51,7 +51,7 @@ class FitResult:
 
 
 def fit_parameters(
-    make_model: Callable[[PyTree], tuple[EquationOfMotion, Pulse]], #callable function that takes p which are the current parameters and returns a tuple of eom an pulse
+    make_model: Callable[[PyTree], tuple[EquationOfMotion, Pulse]], #callable function that takes p, a pytree of parameters, and returns a tuple of eom and pulse
     params0: PyTree,
     *,
     save_spec: SaveSpec,
@@ -146,9 +146,17 @@ def fit_parameters(
     # the optimiser) and static leaves (integer shapes, activation types, etc.)
     # that must not be traced.  This handles both plain jnp.array scalars and
     # eqx.Module params (e.g. a NeuralProperty network) transparently.
+    #
+    # We separate (partition) so the optimiser only sees and updates the
+    # numerical array leaves. Inside the loss we recombine (combine) the
+    # updated array leaves with the static part to reconstruct the full
+    # parameter pytree expected by `make_model` and the solver.
     array_params, static = eqx.partition(params0, eqx.is_array)
 
     def _loss(array_p: PyTree) -> jax.Array:
+        # `array_p` contains only the optimisable arrays; combine it with the
+        # unchanged static leaves to obtain the full params pytree for the
+        # forward simulation and loss evaluation.
         params = eqx.combine(array_p, static)
         eom, pulse = make_model(params)
         sol = solve_eom(
@@ -205,6 +213,7 @@ def fit_parameters(
             print(
                 f"  step {step:>4} / {n_steps}  loss = {loss_float:.4e}"
                 f"  params = {_format_params(array_params)}"
+                f"  grads = {_format_params(grads)}"
             )
 
     params = eqx.combine(array_params, static)

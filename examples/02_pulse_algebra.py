@@ -29,8 +29,8 @@ final_pulse = combined.windowed(HannEnvelope())
 # 3. Evaluate the pulse over a time range
 # Since Pulses are JAX-compatible, we can use vmap for fast evaluation.
 ts = jnp.linspace(0, 15e-6, 1000)
-pressures = jax.vmap(final_pulse)(ts)
-
+pressures = jax.vmap(final_pulse)(ts) # at each time point in ts, we evaluate the final_pulse to get the pressure at that time point, resulting in an array of pressures corresponding to the time points in ts
+print(pressures.shape)
 # 4. Plot the result
 plt.figure(figsize=(10, 4))
 plt.plot(ts * 1e6, pressures / 1e3, lw=2, color="crimson")

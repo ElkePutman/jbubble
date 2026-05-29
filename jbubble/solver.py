@@ -120,6 +120,7 @@ def solve_eom(
         diffrax.TqdmProgressMeter() if progress else diffrax.NoProgressMeter()
     )
     _adjoint = adjoint if adjoint is not None else diffrax.RecursiveCheckpointAdjoint()
+ 
 
     return diffrax.diffeqsolve(
         term,

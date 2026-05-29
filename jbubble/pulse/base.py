@@ -31,7 +31,8 @@ class Pulse(eqx.Module, abc.ABC):
 
     initial_time: float = eqx.field(default=0.0, kw_only=True)
     envelope: Envelope = eqx.field(
-        default_factory=SoftRectangularEnvelope, kw_only=True
+        # default_factory=SoftRectangularEnvelope, kw_only=True
+        default_factory=RectangularEnvelope, kw_only=True
     )
 
     @abc.abstractmethod

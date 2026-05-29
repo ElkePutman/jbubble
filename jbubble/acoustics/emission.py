@@ -186,7 +186,7 @@ class QuasiAcoustic_Attenuated(EmissionModel):
             r:ArrayLike,
             alpha: ArrayLike
             ) -> jax.Array:
-        attenuation_db = alpha * (freq_hz / 1e6) * (r * 100)  
+        attenuation_db = alpha * (freq_hz / 1e6) * (r * 100)  #assume r in m
         return 10 ** (-attenuation_db / 20)
 
     def __call__(

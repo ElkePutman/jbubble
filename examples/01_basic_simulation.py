@@ -34,7 +34,7 @@ eom = ModifiedRayleighPlesset(
     gas=gas,
     shell=shell,
     medium=medium,
-    R0=2.0e-6,  # 2 micron equilibrium radius
+    R0=2.4e-6,  # 2 micron equilibrium radius
     P_amb=101325.0,  # 1 atm ambient pressure
     rho_L=998.0,  # Density of water (kg/m^3)
     c_L =1480.0,  # Speed of sound in water (m/s)
@@ -43,7 +43,7 @@ eom = ModifiedRayleighPlesset(
 # 3. Define the acoustic driving pulse
 # Here we use a 1 MHz ToneBurst with a Sine shape, lasting for 5 cycles.
 pulse = ToneBurst(
-    freq=1e6,
+    freq=2e6,
     pressure=50e3,
     shape=Sine(),
     cycle_num=5,
@@ -57,6 +57,7 @@ result = jax.jit(run_simulation)(
     pulse,
     save_spec=SaveSpec(num_samples=1000),
 )
+
 
 
 
