@@ -16,6 +16,10 @@ import jax.numpy as jnp
 from .property import Property, as_property
 from .state import BubbleState
 
+import scipy.io as sio
+from interpax import Interpolator1D
+
+
 
 class ShellModel(eqx.Module, abc.ABC):
     """Bubble shell / coating model.
@@ -281,3 +285,132 @@ class GompertzSurfaceTension(Property):
         sigma_R0 = chi * ((R0 / R_buckle) ** 2 - 1.0)
         b = -jnp.log(sigma_R0 / a) / jnp.exp(c * (1.0 - R0 / R_buckle))
         return a * jnp.exp(-b * jnp.exp(c * (1.0 - R / R_buckle)))
+    
+
+
+# class SegersSurfaceTension(Property):
+
+
+
+
+class SegersSurfaceTension(Property):
+    mat_path: str
+    sig_0: float
+    sigma_rupture: float
+    k: float = 1e4
+
+    _Am1: float = eqx.field(init=False, static=True)
+    _Am2: float = eqx.field(init=False, static=True)
+    _Am0: float = eqx.field(init=False, static=True)
+    _sigma_of_Am: Interpolator1D = eqx.field(init=False, static=True)
+
+    def __post_init__(self) -> None:
+        data = sio.loadmat(self.mat_path)
+        Am_list = data["A_m"].flatten()
+        sigma_list = data["sig"].flatten()
+
+        object.__setattr__(self, "_Am1", float(Am_list.min()))
+        object.__setattr__(self, "_Am2", float(Am_list.max()))
+        object.__setattr__(self, "_Am0", float(jnp.interp(self.sig_0, jnp.array(sigma_list), jnp.array(Am_list))))
+        object.__setattr__(self, "_sigma_of_Am", Interpolator1D(Am_list, sigma_list, method="monotonic"))
+
+    def __call__(self, state: BubbleState) -> jax.Array:
+        R, R0 = state.R, state.R0
+        AN = 4.0 * jnp.pi * R0 ** 2 / self._Am0
+        Am = 4.0 * jnp.pi * R ** 2 / AN
+
+        # Clamp to valid interpolation range before evaluating
+        Am_clamped = jnp.clip(Am, self._Am1, self._Am2)
+        sig_interp = self._sigma_of_Am(Am_clamped)
+
+        w_lower = jax.nn.sigmoid(self.k * (Am - self._Am1))
+        w_upper = jax.nn.sigmoid(self.k * (Am - self._Am2))
+
+        return w_lower * ((1.0 - w_upper) * sig_interp + w_upper * self.sigma_rupture)
+    
+
+class SegersSurfaceTensionPolyfit(Property):
+    """Differentiable Segers surface tension law (polynomial fit).
+
+    Evaluates the polynomial fit to the experimental sigma(A_m) curve from
+    Segers et al., Soft Matter, 14, 2018, using double-precision coefficients
+    obtained from Tim Segers.
+
+    The domain boundaries Am1 and Am2 are derived analytically from the
+    polynomial:
+    - Am1: root of the polynomial closest to 0.92 (sigma crosses zero)
+    - Am2: root of the derivative closest to 1.12 (maximum of the polynomial)
+
+    Regime boundaries are blended with sigmoid functions for full
+    differentiability.
+
+    Fields
+    ------
+    mat_path : str
+        Path to fit_SigmaR_04-08-2017.mat containing fit.coeff.
+    sig_0 : float
+        Reference surface tension at R0  [N/m].
+    sigma_rupture : float
+        Surface tension in the ruptured regime  [N/m].
+    k : float
+        Sigmoid sharpness for regime blending (default 1e4).
+    """
+
+    mat_path: str
+    sig_0: float
+    sigma_rupture: float
+    k: float = 1e4
+
+    _coeffs: jax.Array = eqx.field(init=False)
+    _Am1: float = eqx.field(init=False, static=True)
+    _Am2: float = eqx.field(init=False, static=True)
+    _Am0: float = eqx.field(init=False, static=True)
+
+    def __post_init__(self) -> None:
+        data = sio.loadmat(self.mat_path, simplify_cells=True)
+        coeffs = jnp.array(data["fit"]["coeff"]).flatten()
+
+        # Am1: root of polynomial closest to 0.92 (sigma = 0 crossing)
+        roots_poly = jnp.roots(coeffs, strip_zeros=False)
+        roots_real = jnp.where(jnp.imag(roots_poly) == 0, jnp.real(roots_poly), jnp.nan)
+        Am1 = float(roots_real[jnp.nanargmin(jnp.abs(roots_real - 0.92))])
+
+        # Am2: root of derivative closest to 1.12 (maximum of polynomial)
+        roots_deriv = jnp.roots(jnp.polyder(coeffs), strip_zeros=False)
+        roots_deriv_real = jnp.where(jnp.imag(roots_deriv) == 0, jnp.real(roots_deriv), jnp.nan)
+        Am2 = float(roots_deriv_real[jnp.nanargmin(jnp.abs(roots_deriv_real - 1.12))])
+
+        # Am0: shift polynomial down by sig_0 and find root in [Am1, Am2]
+        coeffs_shifted = coeffs.at[-1].add(-self.sig_0)
+        roots_shifted = jnp.roots(coeffs_shifted)
+        roots_shifted_real = jnp.real(roots_shifted)
+        in_domain = (jnp.imag(roots_shifted) == 0) & (roots_shifted_real > Am1) & (roots_shifted_real < Am2)
+        roots_in_domain = jnp.where(in_domain, roots_shifted_real, jnp.nan)
+        n_solutions = int(jnp.sum(in_domain))
+        if n_solutions != 1:
+            raise ValueError(
+                f"SegersSurfaceTension: expected 1 solution for Am0 at "
+                f"sig_0={self.sig_0:.4g} N/m, found {n_solutions}. "
+                f"Check that sig_0 is within the elastic regime."
+            )
+        Am0 = float(jnp.nanmin(roots_in_domain))  # only one non-nan value
+
+        object.__setattr__(self, "_coeffs", coeffs)
+        object.__setattr__(self, "_Am1", Am1)
+        object.__setattr__(self, "_Am2", Am2)
+        object.__setattr__(self, "_Am0", Am0)
+
+    def __call__(self, state: BubbleState) -> jax.Array:
+        R, R0 = state.R, state.R0
+
+        AN = 4.0 * jnp.pi * R0**2 / self._Am0
+        Am = 4.0 * jnp.pi * R**2 / AN
+
+        # Clamp before polynomial evaluation to avoid blow-up outside domain
+        Am_clamped = jnp.clip(Am, self._Am1, self._Am2)
+        sig_interp = jnp.polyval(self._coeffs, Am_clamped)
+
+        w_lower = jax.nn.sigmoid(self.k * (Am - self._Am1))
+        w_upper = jax.nn.sigmoid(self.k * (Am - self._Am2))
+
+        return w_lower * ((1.0 - w_upper) * sig_interp + w_upper * self.sigma_rupture)
