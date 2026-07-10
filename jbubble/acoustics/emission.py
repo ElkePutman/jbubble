@@ -196,6 +196,7 @@ class QuasiAcoustic_Attenuated(EmissionModel):
         alpha: ArrayLike
         ) -> jax.Array:
         delay = r / self.c_L
+        ts = result.ts
         t_ret = result.ts - delay
 
         # Interpolate bubble-wall quantities at retarded times.

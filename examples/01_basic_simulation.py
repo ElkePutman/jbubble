@@ -19,6 +19,8 @@ from jbubble.pulse import ToneBurst
 from jbubble.pulse.shapes import Sine
 from jbubble.solver import SaveSpec
 
+from jbubble.acoustics import IncompressibleMonopole
+
 from jax import make_jaxpr
 
 # 1. Define physics components
@@ -59,10 +61,15 @@ result = jax.jit(run_simulation)(
 )
 
 
+emission_model = IncompressibleMonopole(rho_L=998.0)
+
+Pscat = emission_model(result, r=0.08)  # 1 cm from bubble
+
+
 
 
 # 5. Visualize the radius over time
-fig,(ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+fig,(ax1, ax2,ax3) = plt.subplots(3, 1, figsize=(10, 12))
 ax2.plot(result.ts * 1e6, result.radius * 1e6, lw=2, color="navy")
 ax2.set_xlabel("Time (µs)")
 ax2.set_ylabel("Radius (µm)")
@@ -76,7 +83,15 @@ ax1.set_xlabel("Time (µs)")
 ax1.set_ylabel("Amplitude")
 ax1.set_title("Acoustic Driving Pulse")
 ax1.grid(True, alpha=0.3)
+
+
+ax3.plot(result.ts * 1e6, Pscat, lw=2, color="green")
+ax3.set_xlabel("Time (µs)")
+ax3.set_ylabel("Pressure (Pa)")
+ax3.set_title("Acoustic Emission at 8 cm")
+ax3.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.show()
+
 
 
