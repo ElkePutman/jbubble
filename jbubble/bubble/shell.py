@@ -289,7 +289,7 @@ class GompertzSurfaceTension(Property):
 
 
 class SegersSurfaceTension(Property):
-    mat_path: str
+    mat_path: str = eqx.field(static=True)
     sig_0: float
     sigma_rupture: float
     k: float = 1e4
