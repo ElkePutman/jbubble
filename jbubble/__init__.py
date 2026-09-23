@@ -2,7 +2,7 @@
 
 import jax
 
-jax.config.update("jax_enable_x64", True)
+# jax.config.update("jax_enable_x64", True)
 
 # For convenience, expose key simulation entry points
 from .fitting import FitResult, fit_parameters
